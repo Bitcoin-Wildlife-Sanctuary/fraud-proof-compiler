@@ -1,0 +1,9 @@
+[package]
+name = "fraud-proof-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitcoin-script = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-script", tag = "1.0.0" }
+bitcoin = "0.32.0"
+bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec/", tag = "1.0.0", features = ["debug"] }
