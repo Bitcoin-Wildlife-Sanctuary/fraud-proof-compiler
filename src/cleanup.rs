@@ -6,7 +6,7 @@ use bitcoin::opcodes::all::{
     OP_PUSHNUM_6, OP_PUSHNUM_7, OP_PUSHNUM_8, OP_PUSHNUM_9, OP_PUSHNUM_NEG1,
 };
 
-fn find_op_success_cleanup(structure: &mut StructuredScript) -> bool {
+pub fn find_op_success_cleanup(structure: &mut StructuredScript) -> bool {
     match structure {
         StructuredScript::Script(v) => {
             let len = v.0.len();
@@ -101,7 +101,7 @@ mod test {
     define_pushable!();
 
     #[test]
-    fn test_cleanup_nothing() {
+    fn test_cleanup() {
         let script = script! {
             OP_NOP1
             OP_IF

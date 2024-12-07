@@ -7,6 +7,8 @@ pub mod taint;
 
 pub mod cleanup;
 
+pub mod op_success_to_op_if_success;
+
 #[allow(non_snake_case)]
 pub const _OP_SUCCESS: Opcode = OP_RETURN_199;
 
