@@ -78,12 +78,11 @@ pub fn find_op_success_cleanup(structure: &mut StructuredScript) -> bool {
             }
             false
         }
-        StructuredScript::IfEndIf(v, _) | StructuredScript::NotIfEndIf(v, _) => {
+        StructuredScript::IfEndIf(v) | StructuredScript::NotIfEndIf(v) => {
             find_op_success_cleanup(v);
             false
         }
-        StructuredScript::IfElseEndIf(v1, _, v2, _)
-        | StructuredScript::NotIfElseEndIf(v1, _, v2, _) => {
+        StructuredScript::IfElseEndIf(v1, v2) | StructuredScript::NotIfElseEndIf(v1, v2) => {
             find_op_success_cleanup(v1);
             find_op_success_cleanup(v2);
             false
@@ -117,7 +116,7 @@ mod test {
             OP_NOP6
         };
 
-        let mut structured_script = StructuredScript::<()>::from(script);
+        let mut structured_script = StructuredScript::from(script);
         find_op_success_cleanup(&mut structured_script);
 
         let expected_script = script! {

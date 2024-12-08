@@ -23,7 +23,8 @@ pub fn op_success_to_op_if_success(structure: &mut StructuredScript) {
         StructuredScript::MultiScript(vv) => {
             let mut len = vv.len();
 
-            for mut i in 0..len {
+            let mut i = 0;
+            while i < len {
                 op_success_to_op_if_success(&mut vv[i]);
                 if i > 0
                     && matches!(vv[i - 1], StructuredScript::Script(_))
@@ -42,6 +43,7 @@ pub fn op_success_to_op_if_success(structure: &mut StructuredScript) {
                         _ => unreachable!(),
                     }
                 }
+                i += 1;
             }
 
             if vv.len() == 1 {
@@ -49,7 +51,7 @@ pub fn op_success_to_op_if_success(structure: &mut StructuredScript) {
                 *structure = res;
             }
         }
-        StructuredScript::IfEndIf(v, _) => {
+        StructuredScript::IfEndIf(v) => {
             op_success_to_op_if_success(v);
 
             if *v.as_ref()
@@ -64,7 +66,7 @@ pub fn op_success_to_op_if_success(structure: &mut StructuredScript) {
                     )]));
             }
         }
-        StructuredScript::NotIfEndIf(v, _) => {
+        StructuredScript::NotIfEndIf(v) => {
             op_success_to_op_if_success(v);
 
             if *v.as_ref()
@@ -79,8 +81,7 @@ pub fn op_success_to_op_if_success(structure: &mut StructuredScript) {
                 ]));
             }
         }
-        StructuredScript::IfElseEndIf(v1, _, v2, _)
-        | StructuredScript::NotIfElseEndIf(v1, _, v2, _) => {
+        StructuredScript::IfElseEndIf(v1, v2) | StructuredScript::NotIfElseEndIf(v1, v2) => {
             op_success_to_op_if_success(v1);
             op_success_to_op_if_success(v2);
         }
@@ -117,7 +118,7 @@ mod test {
             OP_SUCCESS
         };
 
-        let mut structured_script = StructuredScript::<()>::from(script);
+        let mut structured_script = StructuredScript::from(script);
         op_success_to_op_if_success(&mut structured_script);
 
         let expected_script = script! {

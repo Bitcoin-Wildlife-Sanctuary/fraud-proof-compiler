@@ -3,11 +3,11 @@ use bitcoin::{Opcode, ScriptBuf};
 
 pub mod structured_script;
 
-pub mod taint;
-
 pub mod cleanup;
 
 pub mod op_success_to_op_if_success;
+
+pub mod reduce;
 
 #[allow(non_snake_case)]
 pub const _OP_SUCCESS: Opcode = OP_RETURN_199;

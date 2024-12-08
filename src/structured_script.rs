@@ -1,4 +1,4 @@
-use bitcoin::opcodes::all::{OP_ELSE, OP_ENDIF, OP_IF, OP_NOTIF};
+use bitcoin::opcodes::all::{OP_ELSE, OP_ENDIF, OP_IF, OP_NOTIF, OP_PUSHBYTES_0};
 use bitcoin::script::Instruction;
 use bitcoin::{Opcode, ScriptBuf};
 use std::cmp::PartialEq;
@@ -15,23 +15,13 @@ pub enum OwnedInstruction {
 pub struct OwnedInstructions(pub Vec<OwnedInstruction>);
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum StructuredScript<Ext: Debug + PartialEq + Default = ()> {
+pub enum StructuredScript {
     Script(OwnedInstructions),
-    MultiScript(Vec<StructuredScript<Ext>>),
-    IfEndIf(Box<StructuredScript<Ext>>, Ext),
-    NotIfEndIf(Box<StructuredScript<Ext>>, Ext),
-    IfElseEndIf(
-        Box<StructuredScript<Ext>>,
-        Ext,
-        Box<StructuredScript<Ext>>,
-        Ext,
-    ),
-    NotIfElseEndIf(
-        Box<StructuredScript<Ext>>,
-        Ext,
-        Box<StructuredScript<Ext>>,
-        Ext,
-    ),
+    MultiScript(Vec<StructuredScript>),
+    IfEndIf(Box<StructuredScript>),
+    NotIfEndIf(Box<StructuredScript>),
+    IfElseEndIf(Box<StructuredScript>, Box<StructuredScript>),
+    NotIfElseEndIf(Box<StructuredScript>, Box<StructuredScript>),
 }
 
 impl From<ScriptBuf> for OwnedInstructions {
@@ -43,7 +33,11 @@ impl From<ScriptBuf> for OwnedInstructions {
             match inst {
                 Instruction::Op(opcode) => instructions.push(OwnedInstruction::Op(opcode)),
                 Instruction::PushBytes(bytes) => {
-                    instructions.push(OwnedInstruction::PushBytes(bytes.as_bytes().to_vec()))
+                    if bytes.is_empty() {
+                        instructions.push(OwnedInstruction::Op(OP_PUSHBYTES_0));
+                    } else {
+                        instructions.push(OwnedInstruction::PushBytes(bytes.as_bytes().to_vec()));
+                    }
                 }
             }
         }
@@ -51,23 +45,23 @@ impl From<ScriptBuf> for OwnedInstructions {
     }
 }
 
-impl<F: Debug + PartialEq + Default> From<OwnedInstructions> for StructuredScript<F> {
+impl From<OwnedInstructions> for StructuredScript {
     fn from(value: OwnedInstructions) -> Self {
         let mut iter = value.0.iter().peekable();
         create_structured_script(&mut iter)
     }
 }
 
-impl<F: Debug + PartialEq + Default> From<ScriptBuf> for StructuredScript<F> {
+impl From<ScriptBuf> for StructuredScript {
     fn from(value: ScriptBuf) -> Self {
         let owned_instructions: OwnedInstructions = value.into();
         owned_instructions.into()
     }
 }
 
-fn create_structured_script<Ext: Debug + PartialEq + Default>(
+fn create_structured_script(
     iter: &mut Peekable<core::slice::Iter<OwnedInstruction>>,
-) -> StructuredScript<Ext> {
+) -> StructuredScript {
     let mut cur = vec![];
     let mut all = vec![];
 
@@ -76,9 +70,7 @@ fn create_structured_script<Ext: Debug + PartialEq + Default>(
         if **next_instruction == OwnedInstruction::Op(OP_IF) {
             iter.next().unwrap();
             if !cur.is_empty() {
-                all.push(StructuredScript::<Ext>::Script(OwnedInstructions(
-                    cur.clone(),
-                )));
+                all.push(StructuredScript::Script(OwnedInstructions(cur.clone())));
                 cur.clear();
             }
 
@@ -95,15 +87,10 @@ fn create_structured_script<Ext: Debug + PartialEq + Default>(
 
                 all.push(StructuredScript::IfElseEndIf(
                     Box::new(if_branch),
-                    Ext::default(),
                     Box::new(else_branch),
-                    Ext::default(),
                 ));
             } else if *next_instruction == OwnedInstruction::Op(OP_ENDIF) {
-                all.push(StructuredScript::IfEndIf(
-                    Box::new(if_branch),
-                    Ext::default(),
-                ));
+                all.push(StructuredScript::IfEndIf(Box::new(if_branch)));
             } else {
                 panic!("An if branch does not seem to end correctly.");
             }
@@ -127,15 +114,10 @@ fn create_structured_script<Ext: Debug + PartialEq + Default>(
 
                 all.push(StructuredScript::NotIfElseEndIf(
                     Box::new(not_if_branch),
-                    Ext::default(),
                     Box::new(else_branch),
-                    Ext::default(),
                 ));
             } else if *next_instruction == OwnedInstruction::Op(OP_ENDIF) {
-                all.push(StructuredScript::NotIfEndIf(
-                    Box::new(not_if_branch),
-                    Ext::default(),
-                ));
+                all.push(StructuredScript::NotIfEndIf(Box::new(not_if_branch)));
             } else {
                 panic!("An not-if branch does not seem to end correctly.");
             }
@@ -204,56 +186,42 @@ mod test {
             OP_NOP4
         };
 
-        let structued_script = StructuredScript::<()>::from(script);
+        let structued_script = StructuredScript::from(script);
 
         let expected = StructuredScript::MultiScript(vec![
             StructuredScript::Script(OwnedInstructions(vec![OwnedInstruction::Op(OP_NOP1)])),
-            StructuredScript::IfEndIf(
-                Box::new(StructuredScript::MultiScript(vec![
-                    StructuredScript::Script(OwnedInstructions(vec![
-                        OwnedInstruction::Op(OP_NOP2),
-                        OwnedInstruction::PushBytes(123456u32.to_le_bytes()[0..3].to_vec()),
-                    ])),
-                    StructuredScript::IfElseEndIf(
-                        Box::new(StructuredScript::MultiScript(vec![
-                            StructuredScript::Script(OwnedInstructions(vec![
-                                OwnedInstruction::PushBytes(456789u32.to_le_bytes()[0..3].to_vec()),
-                            ])),
-                            StructuredScript::NotIfEndIf(
-                                Box::new(StructuredScript::Script(OwnedInstructions(vec![
-                                    OwnedInstruction::PushBytes(
-                                        5678u32.to_le_bytes()[0..2].to_vec(),
-                                    ),
-                                    OwnedInstruction::Op(OP_NOP3),
-                                ]))),
-                                (),
-                            ),
-                        ])),
-                        (),
-                        Box::new(StructuredScript::MultiScript(vec![
-                            StructuredScript::NotIfElseEndIf(
-                                Box::new(StructuredScript::Script(OwnedInstructions(vec![
-                                    OwnedInstruction::PushBytes(
-                                        1011u32.to_le_bytes()[0..2].to_vec(),
-                                    ),
-                                ]))),
-                                (),
-                                Box::new(StructuredScript::Script(OwnedInstructions(vec![
-                                    OwnedInstruction::PushBytes(
-                                        1213u32.to_le_bytes()[0..2].to_vec(),
-                                    ),
-                                ]))),
-                                (),
-                            ),
-                            StructuredScript::Script(OwnedInstructions(vec![
-                                OwnedInstruction::PushBytes(1234u32.to_le_bytes()[0..2].to_vec()),
-                            ])),
-                        ])),
-                        (),
-                    ),
+            StructuredScript::IfEndIf(Box::new(StructuredScript::MultiScript(vec![
+                StructuredScript::Script(OwnedInstructions(vec![
+                    OwnedInstruction::Op(OP_NOP2),
+                    OwnedInstruction::PushBytes(123456u32.to_le_bytes()[0..3].to_vec()),
                 ])),
-                (),
-            ),
+                StructuredScript::IfElseEndIf(
+                    Box::new(StructuredScript::MultiScript(vec![
+                        StructuredScript::Script(OwnedInstructions(vec![
+                            OwnedInstruction::PushBytes(456789u32.to_le_bytes()[0..3].to_vec()),
+                        ])),
+                        StructuredScript::NotIfEndIf(Box::new(StructuredScript::Script(
+                            OwnedInstructions(vec![
+                                OwnedInstruction::PushBytes(5678u32.to_le_bytes()[0..2].to_vec()),
+                                OwnedInstruction::Op(OP_NOP3),
+                            ]),
+                        ))),
+                    ])),
+                    Box::new(StructuredScript::MultiScript(vec![
+                        StructuredScript::NotIfElseEndIf(
+                            Box::new(StructuredScript::Script(OwnedInstructions(vec![
+                                OwnedInstruction::PushBytes(1011u32.to_le_bytes()[0..2].to_vec()),
+                            ]))),
+                            Box::new(StructuredScript::Script(OwnedInstructions(vec![
+                                OwnedInstruction::PushBytes(1213u32.to_le_bytes()[0..2].to_vec()),
+                            ]))),
+                        ),
+                        StructuredScript::Script(OwnedInstructions(vec![
+                            OwnedInstruction::PushBytes(1234u32.to_le_bytes()[0..2].to_vec()),
+                        ])),
+                    ])),
+                ),
+            ]))),
             StructuredScript::Script(OwnedInstructions(vec![OwnedInstruction::Op(OP_NOP4)])),
         ]);
 
