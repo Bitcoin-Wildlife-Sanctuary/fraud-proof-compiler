@@ -1,4 +1,5 @@
 use bitcoin::opcodes::all::{OP_ELSE, OP_ENDIF, OP_IF, OP_NOTIF, OP_PUSHBYTES_0};
+use bitcoin::opcodes::Ordinary::{OP_PUSHDATA1, OP_PUSHDATA2};
 use bitcoin::script::Instruction;
 use bitcoin::{Opcode, ScriptBuf};
 use std::cmp::PartialEq;
@@ -56,6 +57,78 @@ impl From<ScriptBuf> for StructuredScript {
     fn from(value: ScriptBuf) -> Self {
         let owned_instructions: OwnedInstructions = value.into();
         owned_instructions.into()
+    }
+}
+
+impl From<StructuredScript> for ScriptBuf {
+    fn from(value: StructuredScript) -> Self {
+        let mut script_buf = vec![];
+        write_script_buf(&mut script_buf, &value);
+        ScriptBuf::from(script_buf)
+    }
+}
+
+fn write_script_buf(buf: &mut Vec<u8>, structure: &StructuredScript) {
+    match structure {
+        StructuredScript::Script(v) => {
+            for inst in v.0.iter() {
+                match inst {
+                    OwnedInstruction::Op(op) => buf.push(op.to_u8()),
+                    OwnedInstruction::PushBytes(v) => {
+                        let len = v.len();
+                        if len == 0 {
+                            buf.push(OP_PUSHBYTES_0.to_u8());
+                        } else if len <= 75 {
+                            buf.push(len as u8);
+                            buf.extend_from_slice(v);
+                        } else {
+                            if len <= 255 {
+                                buf.push(OP_PUSHDATA1.to_u8());
+                                buf.push(len as u8);
+                                buf.extend_from_slice(v);
+                            } else if len <= 65535 {
+                                buf.push(OP_PUSHDATA2.to_u8());
+                                buf.push((len & 0xff) as u8);
+                                buf.push((len >> 8) as u8);
+                                buf.extend_from_slice(v);
+                            } else {
+                                // one cannot push more than 520 bytes to the stack
+                                unreachable!()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        StructuredScript::MultiScript(vv) => {
+            for v in vv.iter() {
+                write_script_buf(buf, v);
+            }
+        }
+        StructuredScript::IfEndIf(v) => {
+            buf.push(OP_IF.to_u8());
+            write_script_buf(buf, v);
+            buf.push(OP_ENDIF.to_u8());
+        }
+        StructuredScript::NotIfEndIf(v) => {
+            buf.push(OP_NOTIF.to_u8());
+            write_script_buf(buf, v);
+            buf.push(OP_ENDIF.to_u8());
+        }
+        StructuredScript::IfElseEndIf(v1, v2) => {
+            buf.push(OP_IF.to_u8());
+            write_script_buf(buf, v1);
+            buf.push(OP_ELSE.to_u8());
+            write_script_buf(buf, v2);
+            buf.push(OP_ENDIF.to_u8());
+        }
+        StructuredScript::NotIfElseEndIf(v1, v2) => {
+            buf.push(OP_NOTIF.to_u8());
+            write_script_buf(buf, v1);
+            buf.push(OP_ELSE.to_u8());
+            write_script_buf(buf, v2);
+            buf.push(OP_ENDIF.to_u8());
+        }
     }
 }
 

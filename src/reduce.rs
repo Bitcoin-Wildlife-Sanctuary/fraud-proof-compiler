@@ -189,7 +189,7 @@ mod test {
     define_pushable!();
 
     #[test]
-    fn test_reduce() {
+    fn test_reduce2() {
         let test_script = script! {
             OP_NOP1
             OP_IF
@@ -232,6 +232,67 @@ mod test {
             OP_ELSE
                   OP_NOP5
                   0
+            OP_ENDIF
+        };
+        let expected: StructuredScript = expected_script.into();
+
+        assert_eq!(expected, script);
+    }
+
+    #[test]
+    fn test_reduce3() {
+        let test_script = script! {
+            OP_NOP1
+            OP_IF
+                OP_NOP2
+                OP_IF_SUCCESS
+                OP_NOP3
+                OP_IF_SUCCESS
+                OP_NOP4
+                OP_IF_SUCCESS
+                OP_NOP5
+            OP_ENDIF
+            OP_NOP6
+        };
+        let mut script: StructuredScript = test_script.into();
+
+        let res = reduce(&mut script);
+        assert_eq!(res, EmitOpIfSuccess::YES);
+
+        let expected_script = script! {
+            OP_NOP1
+            OP_IF
+                OP_NOP2
+                OP_IF
+                    1
+                    0
+                OP_ELSE
+                    OP_NOP3
+                    OP_IF
+                        1
+                        0
+                    OP_ELSE
+                        OP_NOP4
+                        OP_IF
+                            1
+                        OP_ELSE
+                            OP_NOP5
+                            0
+                            0
+                            0
+                        OP_ENDIF
+                    OP_ENDIF
+                    OP_IF 1 OP_ENDIF
+                OP_ENDIF
+                OP_IF 1 OP_ENDIF
+            OP_ELSE
+                0
+            OP_ENDIF
+            OP_IF
+                1
+            OP_ELSE
+                OP_NOP6
+                0
             OP_ENDIF
         };
         let expected: StructuredScript = expected_script.into();
