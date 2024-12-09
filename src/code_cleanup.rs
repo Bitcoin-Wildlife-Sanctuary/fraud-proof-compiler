@@ -92,7 +92,7 @@ pub fn find_op_success_cleanup(structure: &mut StructuredScript) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::cleanup::find_op_success_cleanup;
+    use crate::code_cleanup::find_op_success_cleanup;
     use crate::structured_script::StructuredScript;
     use crate::{OP_IF_SUCCESS, OP_SUCCESS};
     use bitcoin_script::{define_pushable, script};
