@@ -1,5 +1,5 @@
 use crate::structured_script::{OwnedInstruction, OwnedInstructions, StructuredScript};
-use crate::_OP_IF_SUCCESS;
+use crate::_OP_IF_RETURN_TRUE;
 use bitcoin::opcodes::all::OP_PUSHNUM_1;
 use bitcoin::opcodes::OP_0;
 use bitcoin::Opcode;
@@ -23,7 +23,7 @@ pub fn reduce(structure: &mut StructuredScript) -> EmitOpIfSuccess {
             let len = v.0.len();
 
             for i in 0..len {
-                if v.0[i] == OwnedInstruction::Op(_OP_IF_SUCCESS) {
+                if v.0[i] == OwnedInstruction::Op(_OP_IF_RETURN_TRUE) {
                     if i != len - 1 {
                         let existing_code = OwnedInstructions(v.0[0..i].to_vec());
                         let mut rest_code = v.0[i + 1..len].to_vec();
@@ -183,7 +183,7 @@ fn append_opcode(structure: &mut StructuredScript, opcode: Opcode) {
 mod test {
     use crate::reduce::{reduce, EmitOpIfSuccess};
     use crate::structured_script::StructuredScript;
-    use crate::OP_IF_SUCCESS;
+    use crate::OP_IF_RETURN_TRUE;
     use bitcoin_script::{define_pushable, script};
 
     define_pushable!();
@@ -194,9 +194,9 @@ mod test {
             OP_NOP1
             OP_IF
                  OP_NOP2
-                 OP_IF_SUCCESS
+                 OP_IF_RETURN_TRUE
                  OP_NOP3
-                 OP_IF_SUCCESS
+                 OP_IF_RETURN_TRUE
                  OP_NOP4
             OP_ENDIF
             OP_NOP5
@@ -245,11 +245,11 @@ mod test {
             OP_NOP1
             OP_IF
                 OP_NOP2
-                OP_IF_SUCCESS
+                OP_IF_RETURN_TRUE
                 OP_NOP3
-                OP_IF_SUCCESS
+                OP_IF_RETURN_TRUE
                 OP_NOP4
-                OP_IF_SUCCESS
+                OP_IF_RETURN_TRUE
                 OP_NOP5
             OP_ENDIF
             OP_NOP6

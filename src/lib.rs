@@ -5,7 +5,7 @@ pub mod structured_script;
 
 pub mod code_cleanup;
 
-pub mod op_success_to_op_if_success;
+pub mod op_return_true_to_op_if_return_true;
 
 pub mod reduce;
 
@@ -15,17 +15,17 @@ pub mod final_emit;
 mod integration_test;
 
 #[allow(non_snake_case)]
-pub const _OP_SUCCESS: Opcode = OP_RETURN_199;
+pub const _OP_RETURN_TRUE: Opcode = OP_RETURN_199;
 
 #[allow(non_snake_case)]
-pub const _OP_IF_SUCCESS: Opcode = OP_RETURN_200;
+pub const _OP_IF_RETURN_TRUE: Opcode = OP_RETURN_200;
 
 #[allow(non_snake_case)]
-pub fn OP_SUCCESS() -> ScriptBuf {
+pub fn OP_RETURN_TRUE() -> ScriptBuf {
     ScriptBuf::from_bytes(vec![OP_RETURN_199.to_u8()])
 }
 
 #[allow(non_snake_case)]
-pub fn OP_IF_SUCCESS() -> ScriptBuf {
+pub fn OP_IF_RETURN_TRUE() -> ScriptBuf {
     ScriptBuf::from_bytes(vec![OP_RETURN_200.to_u8()])
 }
